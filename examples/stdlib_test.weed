@@ -1,0 +1,24 @@
+// stdlib_test.weed
+import "lib/core.weed";
+
+fn main_test() {
+    println("Hello from WeedLang Stdlib!");
+    
+    i8* str = "Dynamic memory test";
+    print("String: ");
+    println(str);
+
+    // Allocate some memory
+    i32* buf = malloc(16) as i32*;
+    *buf = 1234;
+    *(buf + 1) = 5678;
+
+    print("Buffer values: ");
+    print_int(*buf as i64);
+    print_int(*(buf + 1) as i64);
+
+    free(buf as void*);
+    println("Memory freed. Test complete.");
+}
+
+main_test()

@@ -1,0 +1,385 @@
+// lib/core.weed - Foundational stdlib for WeedLang
+//
+// This file intentionally sticks to language features that are already used
+// elsewhere in the tree: foreign imports, functions, pointers, arrays,
+// arithmetic, comparisons, casts, loops, and simple conditionals.
+
+// --- Windows API imports ---
+foreign "kernel32.dll" GetStdHandle;
+foreign "kernel32.dll" GetCommandLineA;
+foreign "kernel32.dll" CreateFileA;
+foreign "kernel32.dll" GetFileSize;
+foreign "kernel32.dll" CloseHandle;
+foreign "kernel32.dll" ReadFile;
+foreign "kernel32.dll" WriteFile;
+foreign "kernel32.dll" GetProcessHeap;
+foreign "kernel32.dll" HeapAlloc;
+foreign "kernel32.dll" HeapFree;
+
+fn stdin_handle() -> void* {
+    GetStdHandle(0 - 10)
+}
+
+fn stdout_handle() -> void* {
+    GetStdHandle(0 - 11)
+}
+
+fn stderr_handle() -> void* {
+    GetStdHandle(0 - 12)
+}
+
+fn skip_spaces(i8* s) -> i8* {
+    while (*s == 32 || *s == 9 || *s == 10 || *s == 13) {
+        s = s + 1;
+    }
+    s
+}
+
+fn first_command_arg() -> i8* {
+    i8* cmd = dup_string(GetCommandLineA());
+    if (*cmd == 0) {
+        0
+    } else {
+        if (*cmd == 34) {
+            cmd = cmd + 1;
+            while (*cmd != 0 && *cmd != 34) {
+                cmd = cmd + 1;
+            }
+            if (*cmd == 34) {
+                *cmd = 0;
+                cmd = cmd + 1;
+            }
+            if (*cmd == 0) {
+                0
+            } else {
+                skip_spaces(cmd)
+            }
+        } else {
+            while (*cmd != 0 && *cmd != 32 && *cmd != 9) {
+                cmd = cmd + 1;
+            }
+            if (*cmd == 0) {
+                0
+            } else {
+                *cmd = 0;
+                skip_spaces(cmd + 1)
+            }
+        }
+    }
+}
+
+fn read_file_text(i8* path) -> i8* {
+    void* h = CreateFileA(path, 2147483648, 1, 0, 3, 128, 0);
+    if (h == (0 - 1)) {
+        0
+    } else {
+        u32 size = GetFileSize(h, 0);
+        i8* buf = malloc((size + 1) as u64) as i8*;
+        u32 read = 0;
+        ReadFile(h, buf, size, &read, 0);
+        *(buf + read as i64) = 0;
+        CloseHandle(h);
+        buf
+    }
+}
+
+// --- Memory management ---
+
+fn malloc(u64 size) -> void* {
+    void* heap = GetProcessHeap();
+    HeapAlloc(heap, 8, size)
+}
+
+fn free(void* ptr) {
+    void* heap = GetProcessHeap();
+    HeapFree(heap, 0, ptr);
+}
+
+fn memset(void* dst, u8 value, i64 len) -> void* {
+    u8* p = dst as u8*;
+    while (len > 0) {
+        *p = value;
+        p = p + 1;
+        len = len - 1;
+    }
+    dst
+}
+
+fn memcpy(void* dst, void* src, i64 len) -> void* {
+    u8* d = dst as u8*;
+    u8* s = src as u8*;
+    while (len > 0) {
+        *d = *s;
+        d = d + 1;
+        s = s + 1;
+        len = len - 1;
+    }
+    dst
+}
+
+// --- String helpers ---
+
+fn strlen(i8* s) -> i64 {
+    i64 len = 0;
+    while (*s != 0) {
+        s = s + 1;
+        len = len + 1;
+    }
+    len
+}
+
+fn streq(i8* a, i8* b) -> i64 {
+    i64 result = 1;
+    while (*a != 0) {
+        if (*a != *b) {
+            result = 0;
+        }
+        a = a + 1;
+        b = b + 1;
+    }
+    if (*b != 0) {
+        result = 0;
+    }
+    result
+}
+
+fn strlen_limit(i8* s, i64 max_len) -> i64 {
+    i64 len = 0;
+    while (len < max_len && *s != 0) {
+        s = s + 1;
+        len = len + 1;
+    }
+    len
+}
+
+fn strcmp(i8* a, i8* b) -> i64 {
+    while (*a != 0 && *a == *b) {
+        a = a + 1;
+        b = b + 1;
+    }
+    *a - *b
+}
+
+fn starts_with(i8* s, i8* prefix) -> i64 {
+    while (*prefix != 0) {
+        if (*s != *prefix) {
+            return 0;
+        }
+        s = s + 1;
+        prefix = prefix + 1;
+    }
+    1
+}
+
+fn ends_with(i8* s, i8* suffix) -> i64 {
+    i64 s_len = strlen(s);
+    i64 suf_len = strlen(suffix);
+    if (suf_len > s_len) {
+        0
+    } else {
+        s = s + (s_len - suf_len);
+        streq(s, suffix)
+    }
+}
+
+fn is_digit(i8 c) -> i64 {
+    if (c >= 48 && c <= 57) { 1 } else { 0 }
+}
+
+fn is_alpha(i8 c) -> i64 {
+    if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) { 1 } else { 0 }
+}
+
+fn is_alnum(i8 c) -> i64 {
+    if (is_alpha(c) != 0 || is_digit(c) != 0) { 1 } else { 0 }
+}
+
+fn is_space(i8 c) -> i64 {
+    if (c == 32 || c == 9 || c == 10 || c == 13) { 1 } else { 0 }
+}
+
+fn to_upper(i8 c) -> i8 {
+    if (c >= 97 && c <= 122) {
+        c - 32
+    } else {
+        c
+    }
+}
+
+fn to_lower(i8 c) -> i8 {
+    if (c >= 65 && c <= 90) {
+        c + 32
+    } else {
+        c
+    }
+}
+
+fn strcpy(i8* dst, i8* src) -> i8* {
+    i8* out = dst;
+    while (*src != 0) {
+        *dst = *src;
+        dst = dst + 1;
+        src = src + 1;
+    }
+    *dst = 0;
+    out
+}
+
+fn strncpy(i8* dst, i8* src, i64 max_len) -> i8* {
+    i8* out = dst;
+    while (max_len > 0 && *src != 0) {
+        *dst = *src;
+        dst = dst + 1;
+        src = src + 1;
+        max_len = max_len - 1;
+    }
+    while (max_len > 0) {
+        *dst = 0;
+        dst = dst + 1;
+        max_len = max_len - 1;
+    }
+    out
+}
+
+fn concat2(i8* a, i8* b) -> i8* {
+    i64 a_len = strlen(a);
+    i64 b_len = strlen(b);
+    i8* out = malloc((a_len + b_len + 1) as u64) as i8*;
+    i8* p = out;
+    while (*a != 0) {
+        *p = *a;
+        p = p + 1;
+        a = a + 1;
+    }
+    while (*b != 0) {
+        *p = *b;
+        p = p + 1;
+        b = b + 1;
+    }
+    *p = 0;
+    out
+}
+
+fn dup_string(i8* s) -> i8* {
+    i64 len = strlen(s);
+    i8* out = malloc((len + 1) as u64) as i8*;
+    strcpy(out, s)
+}
+
+fn reverse_string(i8* s) -> i8* {
+    i64 len = strlen(s);
+    i64 i = 0;
+    i64 j = len - 1;
+    while (i < j) {
+        i8 tmp = *(s + i);
+        *(s + i) = *(s + j);
+        *(s + j) = tmp;
+        i = i + 1;
+        j = j - 1;
+    }
+    s
+}
+
+fn read_stdin_all(void* buffer, u32 capacity) -> u32 {
+    read_stdin(buffer, capacity)
+}
+
+// --- Console output ---
+
+fn print(i8* s) {
+    void* h = stdout_handle();
+    u32 written = 0;
+    i64 len = strlen(s);
+    WriteFile(h, s, len as u32, &written, 0);
+}
+
+fn eprint(i8* s) {
+    void* h = stderr_handle();
+    u32 written = 0;
+    i64 len = strlen(s);
+    WriteFile(h, s, len as u32, &written, 0);
+}
+
+fn println(i8* s) {
+    print(s);
+    print("\n");
+}
+
+fn eprintln(i8* s) {
+    eprint(s);
+    eprint("\n");
+}
+
+fn print_char(i8 c) {
+    i8[2] buf;
+    i8* p = buf;
+    *p = c;
+    *(p + 1) = 0;
+    print(p);
+}
+
+fn print_bool(i64 value) {
+    if (value == 0) {
+        print("false");
+    } else {
+        print("true");
+    }
+}
+
+fn print_u64(u64 n) {
+    if (n == 0) {
+        println("0");
+    } else {
+        u8[21] buf;
+        i8* p = buf + 20;
+        *p = 0;
+        while (n > 0) {
+            p = p - 1;
+            *p = (48 + (n - (n / 10 * 10))) as i8;
+            n = n / 10;
+        }
+        print(p);
+    }
+}
+
+fn print_int(i64 n) {
+    if (n < 0) {
+        print("-");
+        print_u64((0 - n) as u64);
+    } else {
+        print_u64(n as u64);
+    }
+}
+
+// --- Small numeric helpers ---
+
+fn abs_i64(i64 n) -> i64 {
+    if (n < 0) {
+        0 - n
+    } else {
+        n
+    }
+}
+
+fn min_i64(i64 a, i64 b) -> i64 {
+    if (a < b) {
+        a
+    } else {
+        b
+    }
+}
+
+fn max_i64(i64 a, i64 b) -> i64 {
+    if (a > b) {
+        a
+    } else {
+        b
+    }
+}
+
+fn read_stdin(void* buffer, u32 capacity) -> u32 {
+    void* h = stdin_handle();
+    u32 read = 0;
+    ReadFile(h, buffer, capacity, &read, 0);
+    read
+}

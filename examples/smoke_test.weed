@@ -1,0 +1,24 @@
+foreign "kernel32.dll" GetStdHandle;
+foreign "kernel32.dll" WriteFile;
+foreign "kernel32.dll" ExitProcess;
+
+fn write_str(void* h, i8* s) {
+    u32 written = 0;
+    u64 len = 0;
+    i8* p = s;
+    while (*p != 0) {
+        p = p + 1;
+        len = len + 1;
+    }
+    WriteFile(h, s, len as u32, &written, 0);
+}
+
+fn main() -> int {
+    void* h = GetStdHandle(0 - 11);
+    write_str(h, "STATUS");
+    write_str(h, " ");
+    write_str(h, "START");
+    write_str(h, "\n");
+    ExitProcess(0);
+    0
+}

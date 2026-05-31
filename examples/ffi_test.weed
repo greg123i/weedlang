@@ -1,0 +1,6 @@
+// WeedLang FFI Test
+foreign "kernel32.dll" SetLastError;
+foreign "kernel32.dll" GetLastError;
+
+SetLastError(420);
+GetLastError()

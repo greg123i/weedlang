@@ -1,0 +1,26 @@
+// test_new_featux.weed
+foreign "kernel32.dll" SetLastError;
+foreign "kernel32.dll" GetLastError;
+
+fn test_stack_args(int a, int b, int c, int d, int e, int f, int g, int h) -> int {
+    h
+}
+
+fn test_comparisons(int x, int y) -> int {
+    int x = 0;
+    if (x == y) { x = x + 1; }
+    if (x != y) { x = x + 2; }
+    if (x < y)  { x = x + 4; }
+    if (x > y)  { x = x + 8; }
+    if (x <= y) { x = x + 16; }
+    if (x >= y) { x = x + 32; }
+    x
+}
+
+// Main execution
+int a = test_stack_args(1, 1, 1, 1, 1, 1, 1, 1); // should be 8
+int b = test_comparisons(10, 20); // 10 != 20 (2), 10 < 20 (4), 10 <= 20 (16) => 22
+int c = test_comparisons(20, 10); // 20 != 10 (2), 20 > 10 (8), 20 >= 10 (32) => 42
+int d = test_comparisons(10, 10); // 10 == 10 (1), 10 <= 10 (16), 10 >= 10 (32) => 49
+
+b // 8 + 22 + 42 + 49 = 121

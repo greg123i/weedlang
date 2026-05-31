@@ -1,0 +1,1 @@
+u8 a = 255; i8 b = 0 - 1; i32 res = 0; if (a == 255) { res = res + 1; } if (b == 0 - 1) { res = res + 2; } res

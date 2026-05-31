@@ -1,0 +1,17 @@
+// array_test.weed
+i32[4] arr;
+i32* p = arr;
+
+// Initialize elements using scaled arithmetic
+*p = 10;
+*(p + 1) = 20;
+*(p + 2) = 30;
+*(p + 3) = 40;
+
+i32 res = 0;
+if (*p == 10)       { res = res + 1; }
+if (*(p + 1) == 20) { res = res + 2; }
+if (*(arr + 2) == 30) { res = res + 4; } // arr decay + scale
+if (*(arr + 3) == 40) { res = res + 8; }
+
+res // 1+2+4+8 = 15

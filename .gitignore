@@ -1,0 +1,29 @@
+# Build directories / CMake artifacts
+/build/
+/CMakeFiles/
+/cmake-build-*/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+CTestTestfile.cmake
+Testing/
+
+# Compiler generated outputs (current behavior writes to repo root)
+output.asm
+output.obj
+output.exe
+test.asm
+test.obj
+test.exe
+*.asm
+temp_in.weed
+temp_out.txt
+temp_source.weed
+
+# Local binaries
+*.exe
+*.obj
+
+# IDE
+.idea/
+

@@ -1,0 +1,5 @@
+// Rust-like token macro demo
+macro_rules! add1 { ($x) => { $x + 1 }; }
+
+add1!(41)
+

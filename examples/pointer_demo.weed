@@ -1,0 +1,9 @@
+// Pointer deref + cast demo
+char x;
+char* p;
+
+p = &x;
+*(p as char*) = 65;
+
+*p
+
