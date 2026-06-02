@@ -1,0 +1,6 @@
+import "lib/core.weed";
+
+fn main() -> int {
+    println("Testing core.weed...");
+    0
+}

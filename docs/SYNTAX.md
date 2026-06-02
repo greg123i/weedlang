@@ -98,6 +98,45 @@ asm {
 
 The contents are copied into the generated assembly as-is.
 
+## Macros (Experimental)
+
+WeedLang supports a simple Rust-like macro system using `macro_rules!`. Macros operate on tokens and are expanded before parsing.
+
+### Definition
+
+```weed
+macro_rules! add1 {
+    ($x:expr) => { $x + 1 };
+}
+```
+
+- `$name:frag` defines a fragment. Supported fragments: `tt` (token tree), `ident` (identifier), `expr` (expression), `type` (type).
+- The right-hand side is the replacement token stream.
+
+### Invocation
+
+```weed
+add1!(41) // expands to 41 + 1
+```
+
+Macros must be defined before they are used.
+
+## Comptime
+
+The `comptime` keyword allows executing code at compile-time. It is often used for constant folding and meta-programming.
+
+```weed
+comptime {
+    const N = 2 + 3;
+}
+
+const X = N * 2; // N is available here
+```
+
+- `comptime` blocks are evaluated by the `ConstantEvaluator`.
+- Side effects (like `const` declarations) persist in the compiler's environment for subsequent parsing/codegen.
+- If a `comptime` block contains an expression, it may be lowered to a constant value.
+
 ## Functions
 
 ```weed

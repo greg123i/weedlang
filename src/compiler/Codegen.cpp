@@ -7,6 +7,7 @@ struct StructInfo {
     std::string name;
     std::unordered_map<std::string, int> memberOffsets;
     std::unordered_map<std::string, int> memberSizes;
+    std::unordered_map<std::string, Type> memberTypes;
     int size;
     int align;
 };
@@ -132,6 +133,7 @@ void NASMVisitor::visit(StructDefNode* node) {
     int maxAlign = 1;
     for (const auto& m : node->members()) {
         info.memberOffsets[m.name] = m.offset;
+        info.memberTypes[m.name] = m.type;
         int mSize = sizeOfType(m.type);
         info.memberSizes[m.name] = mSize;
         int a = alignOfType(m.type);
@@ -146,15 +148,38 @@ void NASMVisitor::visit(StructDefNode* node) {
 void NASMVisitor::visit(MemberAccessNode* node) {
     if (node->expr()->kind() == NodeKind::VarRef) {
         auto var = static_cast<VarRefNode*>(node->expr());
-        std::string sTypeName = ctx().varToStruct[var->name()];
+        if (ctx().varTypes.count(var->name())) {
+            Type baseType = ctx().varTypes[var->name()];
+            if (baseType.baseType == DataType::STRUCT_TYPE && baseType.pointerLevel == 0) {
+                std::string sTypeName = baseType.structName;
+                if (!globalStructs.count(sTypeName)) throw std::runtime_error(nodeLoc(node) + "unknown struct type: " + sTypeName);
+                int offset = globalStructs[sTypeName].memberOffsets[node->member()];
+                int mSize = globalStructs[sTypeName].memberSizes[node->member()];
+                Type mType = globalStructs[sTypeName].memberTypes[node->member()];
+                std::string addr = "[rbp - " + std::to_string(32 + ctx().stackOffsets[var->name()] - offset) + "]";
+                emitLoadExtended(asmCode, addr, mSize, mType.isUnsigned);
+                pushType(mType);
+                return;
+            }
+        }
+    }
+
+    node->expr()->accept(this);
+    Type baseType = popType();
+
+    if (baseType.pointerLevel > 0 && baseType.baseType == DataType::STRUCT_TYPE) {
+        std::string sTypeName = baseType.structName;
+        if (!globalStructs.count(sTypeName)) throw std::runtime_error(nodeLoc(node) + "unknown struct type: " + sTypeName);
         int offset = globalStructs[sTypeName].memberOffsets[node->member()];
         int mSize = globalStructs[sTypeName].memberSizes[node->member()];
-        std::string addr = "[rbp - " + std::to_string(32 + ctx().stackOffsets[var->name()] - offset) + "]";
-        emitLoadExtended(asmCode, addr, mSize, false);
-        pushType(Type(DataType::I64)); // simplified
+        Type mType = globalStructs[sTypeName].memberTypes[node->member()];
+        std::string addr = "[rax + " + std::to_string(offset) + "]";
+        emitLoadExtended(asmCode, addr, mSize, mType.isUnsigned);
+        pushType(mType);
         return;
     }
-    throw std::runtime_error(nodeLoc(node) + "member access currently only supports direct struct variables");
+
+    throw std::runtime_error(nodeLoc(node) + "member access requires a struct variable or pointer to struct");
 }
 
 void NASMVisitor::visit(AssignNode* node) {
@@ -181,20 +206,47 @@ void NASMVisitor::visit(AssignNode* node) {
 
     if (node->target()->kind() == NodeKind::MemberAccess) {
         auto mem = static_cast<MemberAccessNode*>(node->target());
+        int rhsOff = pushTmp();
+        
+        // Try VarRef optimization first (direct struct variable)
         if (mem->expr()->kind() == NodeKind::VarRef) {
             auto baseVar = static_cast<VarRefNode*>(mem->expr());
-            std::string sTypeName = ctx().varToStruct[baseVar->name()];
+            if (ctx().varTypes.count(baseVar->name())) {
+                Type baseType = ctx().varTypes[baseVar->name()];
+                if (baseType.baseType == DataType::STRUCT_TYPE && baseType.pointerLevel == 0) {
+                    std::string sTypeName = baseType.structName;
+                    int offset = globalStructs[sTypeName].memberOffsets[mem->member()];
+                    int mSize = globalStructs[sTypeName].memberSizes[mem->member()];
+                    popTmp(rhsOff, "rbx");
+                    asmCode << "    mov " << ptrSizeQualifier(mSize) << " [rbp - " << (32 + ctx().stackOffsets[baseVar->name()] - offset) << "], ";
+                    if (mSize == 1) asmCode << "bl\n";
+                    else if (mSize == 2) asmCode << "bx\n";
+                    else if (mSize == 4) asmCode << "ebx\n";
+                    else asmCode << "rbx\n";
+                    pushType(Type(DataType::VOID));
+                    return;
+                }
+            }
+        }
+
+        // General case: evaluate expression and hope it's a pointer to struct
+        mem->expr()->accept(this);
+        Type baseType = popType();
+        popTmp(rhsOff, "rbx");
+
+        if (baseType.pointerLevel > 0 && baseType.baseType == DataType::STRUCT_TYPE) {
+            std::string sTypeName = baseType.structName;
             int offset = globalStructs[sTypeName].memberOffsets[mem->member()];
             int mSize = globalStructs[sTypeName].memberSizes[mem->member()];
-            asmCode << "    mov " << ptrSizeQualifier(mSize) << " [rbp - " << (32 + ctx().stackOffsets[baseVar->name()] - offset) << "], ";
-            if (mSize == 1) asmCode << "al\n";
-            else if (mSize == 2) asmCode << "ax\n";
-            else if (mSize == 4) asmCode << "eax\n";
-            else asmCode << "rax\n";
+            asmCode << "    mov " << ptrSizeQualifier(mSize) << " [rax + " << offset << "], ";
+            if (mSize == 1) asmCode << "bl\n";
+            else if (mSize == 2) asmCode << "bx\n";
+            else if (mSize == 4) asmCode << "ebx\n";
+            else asmCode << "rbx\n";
             pushType(Type(DataType::VOID));
             return;
         }
-        throw std::runtime_error(nodeLoc(node) + "assignment to a member expression requires a direct struct variable");
+        throw std::runtime_error(nodeLoc(node) + "assignment to a member expression requires a struct variable or pointer to struct");
     }
 
     if (node->target()->kind() == NodeKind::Index) {
@@ -277,10 +329,8 @@ void NASMVisitor::visit(VarDeclNode* node) {
         } else {
             asmCode << "    xor rax, rax\n";
             if (node->type().arraySize > 0) {
-                for (int off = 0; off < sz; off += 8) {
-                   int chunk = std::min(8, sz - off);
-                   if (chunk == 8) asmCode << "    mov qword [rbp - " << (32 + ctx().stackOffsets[node->name()] - off) << "], rax\n";
-                   else if (chunk == 4) asmCode << "    mov dword [rbp - " << (32 + ctx().stackOffsets[node->name()] - off) << "], eax\n";
+                for (int off = 0; off < sz; off += 1) {
+                   asmCode << "    mov byte [rbp - " << (32 + ctx().stackOffsets[node->name()] - off) << "], 0\n";
                 }
             }
         }
@@ -431,10 +481,14 @@ void NASMVisitor::visit(CallNode* node) {
     }
     for (int i = 0; i < (int)args.size(); ++i) freeTmp();
     std::string target = node->name();
-    if (userFunctions.count(target)) target = "wl_" + target;
+    Type resType(DataType::I64);
+    if (userFunctions.count(target)) {
+        resType = userFunctions[target].retType;
+        target = "wl_" + target;
+    }
     asmCode << "    call " << target << "\n";
     asmCode << "    add rsp, " << callFrame << "\n";
-    pushType(Type(DataType::I64));
+    pushType(resType);
 }
 
 void NASMVisitor::visit(ForeignNode* node) {
@@ -465,7 +519,10 @@ void NASMVisitor::visit(StringLiteralNode* node) {
 
 void NASMVisitor::visit(ProgramNode* node) {
     for (const auto& stmt : node->statements()) {
-        if (stmt->kind() == NodeKind::FuncDef) userFunctions.insert(static_cast<FuncDefNode*>(stmt.get())->name());
+        if (stmt->kind() == NodeKind::FuncDef) {
+            auto fn = static_cast<FuncDefNode*>(stmt.get());
+            userFunctions[fn->name()] = {fn->name(), fn->retType()};
+        }
     }
     if (emitLibraryMode) {
         asmCode << "bits 64\ndefault rel\n";
@@ -524,8 +581,12 @@ void NASMVisitor::visit(IfNode* node) {
     node->cond()->accept(this); popType();
     asmCode << "    cmp rax, 0\n    je " << elseL << "\n";
     node->thenBranch()->accept(this);
+    if (node->thenBranch()->isExpression()) popType();
     asmCode << "    jmp " << endL << "\n" << elseL << ":\n";
-    if (node->elseBranch()) node->elseBranch()->accept(this);
+    if (node->elseBranch()) {
+        node->elseBranch()->accept(this);
+        if (node->elseBranch()->isExpression()) popType();
+    }
     asmCode << endL << ":\n";
 }
 
@@ -535,6 +596,7 @@ void NASMVisitor::visit(WhileNode* node) {
     node->cond()->accept(this); popType();
     asmCode << "    cmp rax, 0\n    je " << endL << "\n";
     node->body()->accept(this);
+    if (node->body()->isExpression()) popType();
     asmCode << "    jmp " << startL << "\n" << endL << ":\n";
 }
 

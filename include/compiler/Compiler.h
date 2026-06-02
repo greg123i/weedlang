@@ -19,6 +19,14 @@ public:
         bool noLink = false;
         bool emitObjOnly = false;
         bool runAfterBuild = false;
+        bool useBootstrap = false;
+        std::string bootstrapTokenizerPath = "bootstrap_tokenizer.exe";
+        std::string bootstrapParserPath = "bootstrap_parser.exe";
+        std::string bootstrapComptimePath;
+        std::string bootstrapCodegenPath;
+        std::string bootstrapMacroExpanderPath;
+        std::string bootstrapLinkerPath;
+        std::string bootstrapCompilerPath;
     };
 
     explicit Compiler(Options opt);

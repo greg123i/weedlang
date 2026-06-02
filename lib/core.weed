@@ -129,18 +129,18 @@ fn strlen(i8* s) -> i64 {
 }
 
 fn streq(i8* a, i8* b) -> i64 {
-    i64 result = 1;
-    while (*a != 0) {
+    while (*a != 0 && *b != 0) {
         if (*a != *b) {
-            result = 0;
+            return 0;
         }
         a = a + 1;
         b = b + 1;
     }
-    if (*b != 0) {
-        result = 0;
+    if (*a == 0 && *b == 0) {
+        1
+    } else {
+        0
     }
-    result
 }
 
 fn strlen_limit(i8* s, i64 max_len) -> i64 {
@@ -328,7 +328,7 @@ fn print_bool(i64 value) {
 
 fn print_u64(u64 n) {
     if (n == 0) {
-        println("0");
+        print("0");
     } else {
         u8[21] buf;
         i8* p = buf + 20;

@@ -10,6 +10,7 @@ class Lexer {
 public:
     explicit Lexer(std::string text, std::string sourceName = "<input>");
     Token getNextToken();
+    void setExternalPath(std::string path);
 private:
     std::string text_;
     size_t pos_;
@@ -21,11 +22,15 @@ private:
     std::vector<Token> externalTokens_;
     size_t externalPos_ = 0;
 
-    void runExternalTokenizer();
+    void runExternalTokenizer(const std::string& exePath);
     char peek(size_t ahead = 0) const;
     void advance();
     Token makeToken(TokenType type, std::string value, size_t line, size_t column) const;
     void skipWhitespaceAndComments();
+
+public:
+    static std::string tokenTypeToString(TokenType type);
+    static TokenType stringToTokenType(const std::string& typeStr, const std::string& val);
 };
 
 #endif // COMPILER_LEXER_H

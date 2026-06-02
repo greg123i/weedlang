@@ -1,0 +1,261 @@
+import "lib/core.weed";
+
+// --- AST Node Kinds ---
+const NODE_PROGRAM = 1;
+const NODE_FUNC_DEF = 2;
+const NODE_BLOCK = 3;
+const NODE_RETURN = 4;
+const NODE_VAR_DECL = 5;
+const NODE_VAR_REF = 6;
+const NODE_NUMBER = 7;
+const NODE_STRING = 8;
+const NODE_CALL = 9;
+const NODE_BINARY_OP = 10;
+const NODE_IF = 11;
+const NODE_WHILE = 12;
+const NODE_CAST = 13;
+const NODE_MEMBER_ACCESS = 14;
+const NODE_INDEX = 15;
+const NODE_ADDRESS_OF = 16;
+const NODE_DEREFERENCE = 17;
+const NODE_IMPORT = 18;
+const NODE_FOREIGN = 19;
+const NODE_STRUCT_DEF = 20;
+
+struct ASTNode {
+    i32 kind;
+    i32 line;
+    i32 col;
+    void* data;
+};
+
+struct Token {
+    i8* type;
+    i8* value;
+    i64 line;
+    i64 col;
+};
+
+struct Parser {
+    Token** tokens;
+    i64 count;
+    i64 pos;
+};
+
+fn current_token(Parser* p) -> Token* {
+    if (p.pos < p.count) {
+        p.tokens[p.pos]
+    } else {
+        p.tokens[p.count - 1]
+    }
+}
+
+fn eat(Parser* p) {
+    if (p.pos < p.count) {
+        p.pos = p.pos + 1;
+    }
+}
+
+fn is_type(Parser* p, i8* type) -> i64 {
+    if (strcmp(current_token(p).type, type) == 0) { 1 } else { 0 }
+}
+
+fn is_val(Parser* p, i8* val) -> i64 {
+    if (strcmp(current_token(p).value, val) == 0) { 1 } else { 0 }
+}
+
+fn parse_expression(Parser* p) -> ASTNode* {
+    Token* t = current_token(p);
+    if (is_type(p, "NUMBER") != 0) {
+        ASTNode* node = malloc(32) as ASTNode*;
+        node.kind = NODE_NUMBER;
+        node.line = t.line as i32;
+        node.col = t.col as i32;
+        node.data = t.value as void*;
+        eat(p);
+        return node;
+    }
+    if (is_type(p, "STRING") != 0) {
+        ASTNode* node = malloc(32) as ASTNode*;
+        node.kind = NODE_STRING;
+        node.line = t.line as i32;
+        node.col = t.col as i32;
+        node.data = t.value as void*;
+        eat(p);
+        return node;
+    }
+    if (is_type(p, "IDENT") != 0) {
+        Token* identTok = current_token(p);
+        eat(p);
+        if (is_type(p, "LPAREN") != 0) {
+            eat(p); // (
+            while (is_type(p, "RPAREN") == 0 && is_type(p, "EOF") == 0) { eat(p); }
+            eat(p); // )
+            ASTNode* node = malloc(32) as ASTNode*;
+            node.kind = NODE_CALL;
+            node.line = identTok.line as i32;
+            node.col = identTok.col as i32;
+            node.data = identTok.value as void*;
+            return node;
+        }
+        ASTNode* node = malloc(32) as ASTNode*;
+        node.kind = NODE_VAR_REF;
+        node.line = identTok.line as i32;
+        node.col = identTok.col as i32;
+        node.data = identTok.value as void*;
+        return node;
+    }
+    0 as ASTNode*
+}
+
+fn parse_statement(Parser* p) -> ASTNode* {
+    Token* t = current_token(p);
+    if (is_val(p, "return") != 0) {
+        eat(p);
+        ASTNode* node = malloc(32) as ASTNode*;
+        node.kind = NODE_RETURN;
+        node.line = t.line as i32;
+        node.col = t.col as i32;
+        node.data = parse_expression(p) as void*;
+        if (is_val(p, ";") != 0 || is_type(p, "SEMICOLON") != 0) { eat(p); }
+        return node;
+    }
+    if (is_val(p, "foreign") != 0 || is_type(p, "FOREIGN") != 0) {
+        eat(p); // foreign
+        i8* lib = current_token(p).value; eat(p);
+        i8* func = current_token(p).value; eat(p);
+        if (is_type(p, "SEMICOLON") != 0) { eat(p); }
+        ASTNode* node = malloc(32) as ASTNode*;
+        node.kind = NODE_FOREIGN;
+        node.line = t.line as i32;
+        node.col = t.col as i32;
+        node.data = func as void*;
+        return node;
+    }
+    if (is_val(p, "fn") != 0 || is_type(p, "FN") != 0) {
+        eat(p); // fn
+        i8* name = current_token(p).value; eat(p);
+        while (is_type(p, "LBRACE") == 0 && is_type(p, "EOF") == 0) { eat(p); }
+        if (is_type(p, "LBRACE") != 0) {
+            eat(p); // {
+            while (is_type(p, "RBRACE") == 0 && is_type(p, "EOF") == 0) {
+                ASTNode* sub = parse_statement(p);
+                if (sub == 0) { eat(p); }
+            }
+            eat(p); // }
+        }
+        ASTNode* node = malloc(32) as ASTNode*;
+        node.kind = NODE_FUNC_DEF;
+        node.line = t.line as i32;
+        node.col = t.col as i32;
+        node.data = name as void*;
+        return node;
+    }
+    
+    ASTNode* expr = parse_expression(p);
+    if (expr != 0) {
+        if (is_type(p, "SEMICOLON") != 0) { eat(p); }
+    }
+    expr
+}
+
+fn read_all_tokens(Parser* p) {
+    i8* buf = malloc(1048576) as i8*;
+    i8* write_ptr = buf;
+    u32 total_read = 0;
+    u32 n = 1;
+
+    while (n > 0) {
+        n = read_stdin(write_ptr as void*, 1024);
+        total_read = total_read + n;
+        write_ptr = write_ptr + n;
+        if (total_read > 1048500) { n = 0; } // Safety limit
+    }
+    buf[total_read] = 0;
+
+    p.tokens = malloc(160000) as Token**;
+    p.count = 0;
+    p.pos = 0;
+
+    i8* cur = buf;
+    i64 running = 1;
+    while (running != 0) {
+        while (*cur != 0 && is_space(*cur) != 0) { cur = cur + 1; }
+        if (*cur == 0) { running = 0; }
+        else {
+            i64 line = 0;
+            while (is_digit(*cur) != 0) { line = line * 10 + (*cur - 48); cur = cur + 1; }
+            if (*cur == 58) { cur = cur + 1; }
+            i64 col = 0;
+            while (is_digit(*cur) != 0) { col = col * 10 + (*cur - 48); cur = cur + 1; }
+            while (*cur != 0 && is_space(*cur) != 0 && *cur != 10 && *cur != 13) { cur = cur + 1; }
+
+            i8* type_start = cur;
+            while (*cur != 0 && is_space(*cur) == 0) { cur = cur + 1; }
+            i64 type_len = cur - type_start;
+            i8* type = malloc((type_len + 1) as u64) as i8*;
+            memcpy(type as void*, type_start as void*, type_len);
+            type[type_len] = 0;
+
+            while (*cur != 0 && is_space(*cur) != 0 && *cur != 10 && *cur != 13) { cur = cur + 1; }
+
+            i8* val_start = cur;
+            while (*cur != 0 && *cur != 10 && *cur != 13) { cur = cur + 1; }
+            i64 val_len = cur - val_start;
+            i8* val = malloc((val_len + 1) as u64) as i8*;
+            memcpy(val as void*, val_start as void*, val_len);
+            val[val_len] = 0;
+
+            Token* tok = malloc(32) as Token*;
+            tok.line = line; tok.col = col; tok.type = type; tok.value = val;
+            p.tokens[p.count] = tok;
+            p.count = p.count + 1;
+
+            if (*cur == 13) { cur = cur + 1; }
+            if (*cur == 10) { cur = cur + 1; }
+        }
+    }
+}
+
+fn print_ast(ASTNode* node, i64 indent) {
+    i64 i = 0;
+    while (i < indent) { print("  "); i = i + 1; }
+    if (node == 0) { println("NULL"); return; }
+
+    if (node.kind == NODE_NUMBER) {
+        print("NUMBER: "); println(node.data as i8*);
+    } else {
+    if (node.kind == NODE_STRING) {
+        print("STRING: "); println(node.data as i8*);
+    } else {
+    if (node.kind == NODE_VAR_REF) {
+        print("VAR_REF: "); println(node.data as i8*);
+    } else {
+    if (node.kind == NODE_CALL) {
+        print("CALL: "); println(node.data as i8*);
+    } else {
+    if (node.kind == NODE_RETURN) {
+        println("RETURN"); print_ast(node.data as ASTNode*, indent + 1);
+    } else {
+    if (node.kind == NODE_FOREIGN) {
+        print("FOREIGN: "); println(node.data as i8*);
+    } else {
+    if (node.kind == NODE_FUNC_DEF) {
+        print("FUNC: "); println(node.data as i8*);
+    } else {
+        print("UNKNOWN: "); print_int(node.kind as i64); println("");
+    }}}}}}}
+}
+
+fn main() -> int {
+    Parser* p = malloc(32) as Parser*;
+    read_all_tokens(p);
+    if (p.count == 0) { return 0; }
+
+    while (p.pos < p.count && strcmp(p.tokens[p.pos].type, "EOF") != 0) {
+        ASTNode* node = parse_statement(p);
+        if (node == 0) { eat(p); }
+        else { print_ast(node, 0); }
+    }
+    0
+}

@@ -7,6 +7,7 @@ cmake_install.cmake
 Makefile
 CTestTestfile.cmake
 Testing/
+/bin/
 
 # Compiler generated outputs (current behavior writes to repo root)
 output.asm

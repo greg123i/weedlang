@@ -9,6 +9,7 @@ class Parser {
 public:
     explicit Parser(const std::vector<Token>& tokens);
     std::unique_ptr<ASTNode> parse();
+    static std::unique_ptr<ASTNode> parseExternal(const std::string& exePath, const std::vector<Token>& tokens);
     const std::vector<std::string>& errors() const;
 private:
     std::vector<Token> tokens_;

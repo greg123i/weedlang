@@ -17,6 +17,14 @@ static void printUsage(const char* exe) {
         << "  --no-link         Emit assembly only, skip NASM/link\n"
         << "  --emit-obj        Assemble to .obj and stop before PE linking\n"
         << "  --run             Run the output executable after build\n"
+        << "  --bootstrap       Use bootstrap tokenizer and parser\n"
+        << "  --bootstrap-tokenizer <path> Use specific tokenizer\n"
+        << "  --bootstrap-parser <path>    Use specific parser\n"
+        << "  --bootstrap-comptime <path>  Use specific comptime evaluator\n"
+        << "  --bootstrap-codegen <path>   Use specific code generator\n"
+        << "  --bootstrap-macro <path>     Use specific macro expander\n"
+        << "  --bootstrap-linker <path>    Use specific linker\n"
+        << "  --bootstrap-compiler <path>  Use specific compiler (bypass all stages)\n"
         << "  --help            Show this help\n";
 }
 
@@ -54,6 +62,29 @@ int main(int argc, char* argv[]) {
             opt.emitObjOnly = true;
         } else if (arg == "--run") {
             opt.runAfterBuild = true;
+        } else if (arg == "--bootstrap") {
+            opt.useBootstrap = true;
+        } else if (arg == "--bootstrap-tokenizer") {
+            if (i + 1 >= argc) { std::cerr << "missing value for --bootstrap-tokenizer\n"; return 1; }
+            opt.bootstrapTokenizerPath = argv[++i];
+        } else if (arg == "--bootstrap-parser") {
+            if (i + 1 >= argc) { std::cerr << "missing value for --bootstrap-parser\n"; return 1; }
+            opt.bootstrapParserPath = argv[++i];
+        } else if (arg == "--bootstrap-comptime") {
+            if (i + 1 >= argc) { std::cerr << "missing value for --bootstrap-comptime\n"; return 1; }
+            opt.bootstrapComptimePath = argv[++i];
+        } else if (arg == "--bootstrap-codegen") {
+            if (i + 1 >= argc) { std::cerr << "missing value for --bootstrap-codegen\n"; return 1; }
+            opt.bootstrapCodegenPath = argv[++i];
+        } else if (arg == "--bootstrap-macro") {
+            if (i + 1 >= argc) { std::cerr << "missing value for --bootstrap-macro\n"; return 1; }
+            opt.bootstrapMacroExpanderPath = argv[++i];
+        } else if (arg == "--bootstrap-linker") {
+            if (i + 1 >= argc) { std::cerr << "missing value for --bootstrap-linker\n"; return 1; }
+            opt.bootstrapLinkerPath = argv[++i];
+        } else if (arg == "--bootstrap-compiler") {
+            if (i + 1 >= argc) { std::cerr << "missing value for --bootstrap-compiler\n"; return 1; }
+            opt.bootstrapCompilerPath = argv[++i];
         } else if (arg == "-") {
             opt.readStdin = true;
             opt.inputPath = "-";

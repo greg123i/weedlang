@@ -184,10 +184,11 @@ fn tokenize(i8* src) {
 fn main() -> int {
     i8* path = first_command_arg();
     if (path == 0) {
-        i8[65536] buf;
+        i8* buf = malloc(65536) as i8*;
         u32 n = read_stdin(buf as void*, 65535);
         buf[n] = 0;
         tokenize(buf);
+        free(buf as void*);
     } else {
         i8* src = read_file_text(path);
         if (src == 0) {

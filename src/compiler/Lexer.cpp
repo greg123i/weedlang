@@ -19,20 +19,84 @@ Lexer::Lexer(std::string text, std::string sourceName)
         (unsigned char)text_[2] == 0xBF) {
         pos_ = 3;
     }
+}
 
-    if (std::filesystem::exists("tokenizer.exe")) {
+void Lexer::setExternalPath(std::string path) {
+    if (!path.empty() && std::filesystem::exists(path)) {
         useExternal_ = true;
-        runExternalTokenizer();
-    } else {
-        auto exePath = std::filesystem::path(sourceName).parent_path() / "tokenizer.exe";
-        if (std::filesystem::exists(exePath)) {
-            useExternal_ = true;
-            runExternalTokenizer();
-        }
+        runExternalTokenizer(path);
     }
 }
 
-void Lexer::runExternalTokenizer() {
+TokenType Lexer::stringToTokenType(const std::string& typeStr, const std::string& val) {
+    if (typeStr == "KEYWORD") {
+        if (val == "fn") return TokenType::FN;
+        if (val == "return") return TokenType::RETURN;
+        if (val == "if") return TokenType::IF;
+        if (val == "else") return TokenType::ELSE;
+        if (val == "while") return TokenType::WHILE;
+        if (val == "struct") return TokenType::STRUCT;
+        if (val == "const") return TokenType::CONST;
+        if (val == "import") return TokenType::IMPORT;
+        if (val == "foreign") return TokenType::FOREIGN;
+        if (val == "comptime") return TokenType::COMPTIME;
+        if (val == "macro_rules") return TokenType::MACRO_RULES;
+        if (val == "char") return TokenType::CHAR_TYPE;
+        if (val == "short") return TokenType::SHORT_TYPE;
+        if (val == "int") return TokenType::INT_TYPE;
+        if (val == "long") return TokenType::LONG_TYPE;
+        if (val == "i8") return TokenType::I8_TYPE;
+        if (val == "i16") return TokenType::I16_TYPE;
+        if (val == "i32") return TokenType::I32_TYPE;
+        if (val == "i64") return TokenType::I64_TYPE;
+        if (val == "u8") return TokenType::U8_TYPE;
+        if (val == "u16") return TokenType::U16_TYPE;
+        if (val == "u32") return TokenType::U32_TYPE;
+        if (val == "u64") return TokenType::U64_TYPE;
+        if (val == "void") return TokenType::VOID_TYPE;
+        if (val == "as") return TokenType::AS;
+    } else if (typeStr == "IDENT") {
+        return TokenType::IDENTIFIER;
+    } else if (typeStr == "NUMBER") {
+        return TokenType::NUMBER;
+    } else if (typeStr == "STRING") {
+        return TokenType::STRING_LITERAL;
+    } else if (typeStr == "PUNC") {
+        if (val == "+") return TokenType::PLUS;
+        if (val == "-") return TokenType::MINUS;
+        if (val == "*") return TokenType::MULTIPLY;
+        if (val == "/") return TokenType::DIVIDE;
+        if (val == "(") return TokenType::LPAREN;
+        if (val == ")") return TokenType::RPAREN;
+        if (val == "{") return TokenType::LBRACE;
+        if (val == "}") return TokenType::RBRACE;
+        if (val == "[") return TokenType::LBRACKET;
+        if (val == "]") return TokenType::RBRACKET;
+        if (val == ",") return TokenType::COMMA;
+        if (val == ";") return TokenType::SEMICOLON;
+        if (val == ":") return TokenType::COLON;
+        if (val == ".") return TokenType::DOT;
+        if (val == "=") return TokenType::EQUAL;
+        if (val == "!") return TokenType::BANG;
+        if (val == "$") return TokenType::DOLLAR;
+        if (val == "->") return TokenType::ARROW;
+        if (val == "=>") return TokenType::FAT_ARROW;
+        if (val == "==") return TokenType::DOUBLE_EQUAL;
+        if (val == "!=") return TokenType::NOT_EQUAL;
+        if (val == "<") return TokenType::LESS;
+        if (val == ">") return TokenType::GREATER;
+        if (val == "<=") return TokenType::LESS_EQUAL;
+        if (val == ">=") return TokenType::GREATER_EQUAL;
+        if (val == "&&") return TokenType::LOGICAL_AND;
+        if (val == "||") return TokenType::LOGICAL_OR;
+        if (val == "&") return TokenType::AMPERSAND;
+    } else if (typeStr == "EOF") {
+        return TokenType::END_OF_FILE;
+    }
+    return TokenType::UNKNOWN;
+}
+
+void Lexer::runExternalTokenizer(const std::string& exePath) {
     // Write text to a temporary input file
     std::string tempInPath = "temp_in.weed";
     std::string tempOutPath = "temp_out.txt";
@@ -41,7 +105,7 @@ void Lexer::runExternalTokenizer() {
         out << text_;
     }
 
-    std::string cmd = "tokenizer.exe " + tempInPath + " > " + tempOutPath + " 2> nul";
+    std::string cmd = exePath + " " + tempInPath + " > " + tempOutPath + " 2> nul";
     int rc = std::system(cmd.c_str());
     if (rc != 0) {
         useExternal_ = false;
@@ -70,76 +134,11 @@ void Lexer::runExternalTokenizer() {
         // Trim trailing spaces from val
         while (!val.empty() && std::isspace((unsigned char)val.back())) val.pop_back();
 
-        TokenType type = TokenType::UNKNOWN;
-        if (typeStr == "KEYWORD") {
-            if (val == "fn") type = TokenType::FN;
-            else if (val == "return") type = TokenType::RETURN;
-            else if (val == "if") type = TokenType::IF;
-            else if (val == "else") type = TokenType::ELSE;
-            else if (val == "while") type = TokenType::WHILE;
-            else if (val == "struct") type = TokenType::STRUCT;
-            else if (val == "const") type = TokenType::CONST;
-            else if (val == "import") type = TokenType::IMPORT;
-            else if (val == "foreign") type = TokenType::FOREIGN;
-            else if (val == "comptime") type = TokenType::COMPTIME;
-            else if (val == "macro_rules") type = TokenType::MACRO_RULES;
-            else if (val == "char") type = TokenType::CHAR_TYPE;
-            else if (val == "short") type = TokenType::SHORT_TYPE;
-            else if (val == "int") type = TokenType::INT_TYPE;
-            else if (val == "long") type = TokenType::LONG_TYPE;
-            else if (val == "i8") type = TokenType::I8_TYPE;
-            else if (val == "i16") type = TokenType::I16_TYPE;
-            else if (val == "i32") type = TokenType::I32_TYPE;
-            else if (val == "i64") type = TokenType::I64_TYPE;
-            else if (val == "u8") type = TokenType::U8_TYPE;
-            else if (val == "u16") type = TokenType::U16_TYPE;
-            else if (val == "u32") type = TokenType::U32_TYPE;
-            else if (val == "u64") type = TokenType::U64_TYPE;
-            else if (val == "void") type = TokenType::VOID_TYPE;
-            else if (val == "as") type = TokenType::AS;
-            else if (val == "asm") type = TokenType::UNKNOWN; // wait, asm is handled below
-        } else if (typeStr == "IDENT") {
-            type = TokenType::IDENTIFIER;
-        } else if (typeStr == "NUMBER") {
-            type = TokenType::NUMBER;
-        } else if (typeStr == "STRING") {
-            type = TokenType::STRING_LITERAL;
-        } else if (typeStr == "PUNC") {
-            if (val == "+") type = TokenType::PLUS;
-            else if (val == "-") type = TokenType::MINUS;
-            else if (val == "*") type = TokenType::MULTIPLY;
-            else if (val == "/") type = TokenType::DIVIDE;
-            else if (val == "(") type = TokenType::LPAREN;
-            else if (val == ")") type = TokenType::RPAREN;
-            else if (val == "{") type = TokenType::LBRACE;
-            else if (val == "}") type = TokenType::RBRACE;
-            else if (val == "[") type = TokenType::LBRACKET;
-            else if (val == "]") type = TokenType::RBRACKET;
-            else if (val == ",") type = TokenType::COMMA;
-            else if (val == ";") type = TokenType::SEMICOLON;
-            else if (val == ":") type = TokenType::COLON;
-            else if (val == ".") type = TokenType::DOT;
-            else if (val == "=") type = TokenType::EQUAL;
-            else if (val == "!") type = TokenType::BANG;
-            else if (val == "$") type = TokenType::DOLLAR;
-            else if (val == "->") type = TokenType::ARROW;
-            else if (val == "=>") type = TokenType::FAT_ARROW;
-            else if (val == "==") type = TokenType::DOUBLE_EQUAL;
-            else if (val == "!=") type = TokenType::NOT_EQUAL;
-            else if (val == "<") type = TokenType::LESS;
-            else if (val == ">") type = TokenType::GREATER;
-            else if (val == "<=") type = TokenType::LESS_EQUAL;
-            else if (val == ">=") type = TokenType::GREATER_EQUAL;
-            else if (val == "&&") type = TokenType::LOGICAL_AND;
-            else if (val == "||") type = TokenType::LOGICAL_OR;
-            else if (val == "&") type = TokenType::AMPERSAND;
-        } else if (typeStr == "EOF") {
-            type = TokenType::END_OF_FILE;
-        }
-
+        TokenType type = stringToTokenType(typeStr, val);
         externalTokens_.push_back(makeToken(type, val, l, c));
     }
 
+    in.close();
     std::filesystem::remove(tempInPath);
     std::filesystem::remove(tempOutPath);
 }
@@ -162,9 +161,59 @@ void Lexer::advance() {
     column_++;
 }
 
+std::string Lexer::tokenTypeToString(TokenType type) {
+    switch (type) {
+        case TokenType::NUMBER: return "NUMBER";
+        case TokenType::IDENTIFIER: return "IDENT";
+        case TokenType::STRING_LITERAL: return "STRING";
+        case TokenType::PLUS: return "PLUS";
+        case TokenType::MINUS: return "MINUS";
+        case TokenType::MULTIPLY: return "MULTIPLY";
+        case TokenType::DIVIDE: return "DIVIDE";
+        case TokenType::LPAREN: return "LPAREN";
+        case TokenType::RPAREN: return "RPAREN";
+        case TokenType::LBRACE: return "LBRACE";
+        case TokenType::RBRACE: return "RBRACE";
+        case TokenType::LBRACKET: return "LBRACKET";
+        case TokenType::RBRACKET: return "RBRACKET";
+        case TokenType::COMMA: return "COMMA";
+        case TokenType::SEMICOLON: return "SEMICOLON";
+        case TokenType::COLON: return "COLON";
+        case TokenType::DOT: return "DOT";
+        case TokenType::EQUAL: return "EQUAL";
+        case TokenType::BANG: return "BANG";
+        case TokenType::DOLLAR: return "DOLLAR";
+        case TokenType::ARROW: return "ARROW";
+        case TokenType::FAT_ARROW: return "FAT_ARROW";
+        case TokenType::DOUBLE_EQUAL: return "DOUBLE_EQUAL";
+        case TokenType::NOT_EQUAL: return "NOT_EQUAL";
+        case TokenType::LESS: return "LESS";
+        case TokenType::GREATER: return "GREATER";
+        case TokenType::LESS_EQUAL: return "LESS_EQUAL";
+        case TokenType::GREATER_EQUAL: return "GREATER_EQUAL";
+        case TokenType::LOGICAL_AND: return "LOGICAL_AND";
+        case TokenType::LOGICAL_OR: return "LOGICAL_OR";
+        case TokenType::AMPERSAND: return "AMPERSAND";
+        case TokenType::FN: return "FN";
+        case TokenType::RETURN: return "RETURN";
+        case TokenType::IF: return "IF";
+        case TokenType::ELSE: return "ELSE";
+        case TokenType::WHILE: return "WHILE";
+        case TokenType::STRUCT: return "STRUCT";
+        case TokenType::CONST: return "CONST";
+        case TokenType::IMPORT: return "IMPORT";
+        case TokenType::FOREIGN: return "FOREIGN";
+        case TokenType::COMPTIME: return "COMPTIME";
+        case TokenType::MACRO_RULES: return "MACRO_RULES";
+        case TokenType::AS: return "AS";
+        case TokenType::END_OF_FILE: return "EOF";
+        default: return "UNKNOWN";
+    }
+}
+
 Token Lexer::makeToken(TokenType type, std::string value, size_t line, size_t column) const {
     Token token(type, std::move(value));
-    token.location.file = sourceName_.get();
+    token.location.file = sourceName_;
     token.location.line = line;
     token.location.column = column;
     return token;
@@ -173,7 +222,7 @@ Token Lexer::makeToken(TokenType type, std::string value, size_t line, size_t co
 void Lexer::skipWhitespaceAndComments() {
     while (pos_ < text_.size()) {
         char c = peek();
-        if (std::isspace((unsigned char)c) || c == '\0') {
+        if (std::isspace((unsigned char)c)) {
             advance();
             continue;
         }

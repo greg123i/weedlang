@@ -1,7 +1,57 @@
 #include "compiler/Parser.h"
+#include "compiler/Lexer.h"
 #include <stdexcept>
 #include <sstream>
 #include <iostream>
+#include <fstream>
+#include <filesystem>
+
+#ifdef _WIN32
+#define popen _popen
+#define pclose _pclose
+#endif
+
+std::unique_ptr<ASTNode> Parser::parseExternal(const std::string& exePath, const std::vector<Token>& tokens) {
+    std::string tempIn = "temp_tokens.txt";
+    std::string tempOut = "temp_ast.txt";
+    {
+        std::ofstream out(tempIn, std::ios::binary);
+        for (const auto& t : tokens) {
+            out << t.location.line << ":" << t.location.column << " "
+                << Lexer::tokenTypeToString(t.type) << " " << t.value << "\n";
+        }
+    }
+
+    std::string cmd = exePath + " < " + tempIn + " > " + tempOut + " 2> nul";
+    std::system(cmd.c_str());
+
+    std::ifstream in(tempOut);
+    std::vector<std::unique_ptr<ASTNode>> programStmts;
+    std::string line;
+
+    while (std::getline(in, line)) {
+        if (line.empty()) continue;
+        size_t indent = 0;
+        while (indent < line.length() && line[indent] == ' ') indent++;
+        if (indent > 0) continue;
+
+        std::string content = line.substr(indent);
+        if (content.starts_with("NUMBER: ")) {
+            programStmts.push_back(std::make_unique<NumberNode>(content.substr(8)));
+        } else if (content.starts_with("STRING: ")) {
+            programStmts.push_back(std::make_unique<StringLiteralNode>(content.substr(8)));
+        } else if (content.starts_with("VAR_REF: ")) {
+            programStmts.push_back(std::make_unique<VarRefNode>(content.substr(9)));
+        } else if (content.starts_with("FUNC: ")) {
+             programStmts.push_back(std::make_unique<FuncDefNode>(content.substr(6), std::vector<FuncParam>{}, Type(DataType::VOID), std::make_unique<BlockNode>(std::vector<std::unique_ptr<ASTNode>>{})));
+        }
+    }
+
+    in.close();
+    std::filesystem::remove(tempIn);
+    std::filesystem::remove(tempOut);
+    return std::make_unique<ProgramNode>(std::move(programStmts));
+}
 
 static int sizeOfType(const Type& t) {
     return t.size();
@@ -135,15 +185,18 @@ std::unique_ptr<BlockNode> Parser::parseBlock() {
     }
     eat(); // {
     std::vector<std::unique_ptr<ASTNode>> stmts;
-    while (currentToken_.type != TokenType::RBRACE) {
+    while (currentToken_.type != TokenType::RBRACE && currentToken_.type != TokenType::END_OF_FILE) {
         try {
             stmts.push_back(parseStatement());
             if (currentToken_.type == TokenType::SEMICOLON) eat();
         } catch (const std::exception& ex) {
             errors_.push_back(ex.what());
             synchronize();
-            if (currentToken_.type == TokenType::RBRACE) break;
+            if (currentToken_.type == TokenType::RBRACE || currentToken_.type == TokenType::END_OF_FILE) break;
         }
+    }
+    if (currentToken_.type == TokenType::END_OF_FILE) {
+        throw errorAt(currentToken_, "unexpected end of file (unclosed '{')");
     }
     eat(); // }
     return makeNode<BlockNode>(start, std::move(stmts));

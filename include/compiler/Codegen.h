@@ -11,7 +11,11 @@ class NASMVisitor : public ASTVisitor {
 public:
     std::stringstream asmCode;
     std::unordered_map<std::string, std::string> imports;
-    std::set<std::string> userFunctions;
+    struct FunctionInfo {
+        std::string name;
+        Type retType;
+    };
+    std::unordered_map<std::string, FunctionInfo> userFunctions;
     bool emitLibraryMode = false;
 
     // Type stack for expression results (replaces fragile lastType)
