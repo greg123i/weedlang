@@ -11,6 +11,38 @@
 #define pclose _pclose
 #endif
 
+namespace {
+
+std::string decodeExternalTokenValue(const std::string& val) {
+    std::string out;
+    out.reserve(val.size());
+
+    for (size_t i = 0; i < val.size(); ++i) {
+        if (val[i] != '\\' || i + 1 >= val.size()) {
+            out += val[i];
+            continue;
+        }
+
+        const char next = val[i + 1];
+        switch (next) {
+            case 'n': out += '\n'; ++i; break;
+            case 'r': out += '\r'; ++i; break;
+            case 't': out += '\t'; ++i; break;
+            case '0': out += '\0'; ++i; break;
+            case '\\': out += '\\'; ++i; break;
+            case '"': out += '"'; ++i; break;
+            case '\'': out += '\''; ++i; break;
+            default:
+                out += val[i];
+                break;
+        }
+    }
+
+    return out;
+}
+
+} // namespace
+
 Lexer::Lexer(std::string text, std::string sourceName)
     : text_(std::move(text)), pos_(0), line_(1), column_(1), sourceName_(std::make_shared<std::string>(std::move(sourceName))) {
     if (text_.length() >= 3 &&
@@ -55,6 +87,8 @@ TokenType Lexer::stringToTokenType(const std::string& typeStr, const std::string
         if (val == "u64") return TokenType::U64_TYPE;
         if (val == "void") return TokenType::VOID_TYPE;
         if (val == "as") return TokenType::AS;
+    } else if (typeStr == "ASM") {
+        return TokenType::ASM_BLOCK;
     } else if (typeStr == "IDENT") {
         return TokenType::IDENTIFIER;
     } else if (typeStr == "NUMBER") {
@@ -134,6 +168,8 @@ void Lexer::runExternalTokenizer(const std::string& exePath) {
         // Trim trailing spaces from val
         while (!val.empty() && std::isspace((unsigned char)val.back())) val.pop_back();
 
+        val = decodeExternalTokenValue(val);
+
         TokenType type = stringToTokenType(typeStr, val);
         externalTokens_.push_back(makeToken(type, val, l, c));
     }
@@ -205,7 +241,21 @@ std::string Lexer::tokenTypeToString(TokenType type) {
         case TokenType::FOREIGN: return "FOREIGN";
         case TokenType::COMPTIME: return "COMPTIME";
         case TokenType::MACRO_RULES: return "MACRO_RULES";
+        case TokenType::ASM_BLOCK: return "ASM";
         case TokenType::AS: return "AS";
+        case TokenType::CHAR_TYPE: return "KEYWORD";
+        case TokenType::SHORT_TYPE: return "KEYWORD";
+        case TokenType::INT_TYPE: return "KEYWORD";
+        case TokenType::LONG_TYPE: return "KEYWORD";
+        case TokenType::I8_TYPE: return "KEYWORD";
+        case TokenType::I16_TYPE: return "KEYWORD";
+        case TokenType::I32_TYPE: return "KEYWORD";
+        case TokenType::I64_TYPE: return "KEYWORD";
+        case TokenType::U8_TYPE: return "KEYWORD";
+        case TokenType::U16_TYPE: return "KEYWORD";
+        case TokenType::U32_TYPE: return "KEYWORD";
+        case TokenType::U64_TYPE: return "KEYWORD";
+        case TokenType::VOID_TYPE: return "KEYWORD";
         case TokenType::END_OF_FILE: return "EOF";
         default: return "UNKNOWN";
     }

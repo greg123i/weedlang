@@ -73,6 +73,47 @@ void testControlKeywordLexing() {
     std::cout << "Control keyword lexing test passed!" << std::endl;
 }
 
+void testCommentSkippingAndOperators() {
+    Lexer lexer("// ignore this line\n1 <= 2 >= 3 == 4 != 5 && 6 || 7 -> 8 => 9 : $ [ ] &");
+
+    assert(lexer.getNextToken().type == TokenType::NUMBER);
+    assert(lexer.getNextToken().type == TokenType::LESS_EQUAL);
+    assert(lexer.getNextToken().type == TokenType::NUMBER);
+    assert(lexer.getNextToken().type == TokenType::GREATER_EQUAL);
+    assert(lexer.getNextToken().type == TokenType::NUMBER);
+    assert(lexer.getNextToken().type == TokenType::DOUBLE_EQUAL);
+    assert(lexer.getNextToken().type == TokenType::NUMBER);
+    assert(lexer.getNextToken().type == TokenType::NOT_EQUAL);
+    assert(lexer.getNextToken().type == TokenType::NUMBER);
+    assert(lexer.getNextToken().type == TokenType::LOGICAL_AND);
+    assert(lexer.getNextToken().type == TokenType::NUMBER);
+    assert(lexer.getNextToken().type == TokenType::LOGICAL_OR);
+    assert(lexer.getNextToken().type == TokenType::NUMBER);
+    assert(lexer.getNextToken().type == TokenType::ARROW);
+    assert(lexer.getNextToken().type == TokenType::NUMBER);
+    assert(lexer.getNextToken().type == TokenType::FAT_ARROW);
+    assert(lexer.getNextToken().type == TokenType::NUMBER);
+    assert(lexer.getNextToken().type == TokenType::COLON);
+    assert(lexer.getNextToken().type == TokenType::DOLLAR);
+    assert(lexer.getNextToken().type == TokenType::LBRACKET);
+    assert(lexer.getNextToken().type == TokenType::RBRACKET);
+    assert(lexer.getNextToken().type == TokenType::AMPERSAND);
+    assert(lexer.getNextToken().type == TokenType::END_OF_FILE);
+
+    std::cout << "Comment skipping and operator lexing test passed!" << std::endl;
+}
+
+void testStringEscapeLexing() {
+    Lexer lexer("\"line1\\nline2\\t\\\"quoted\\\"\\\\\"");
+    Token t = lexer.getNextToken();
+    assert(t.type == TokenType::STRING_LITERAL);
+    assert(t.value.find("\\n") != std::string::npos);
+    assert(t.value.find("\\t") != std::string::npos);
+    assert(t.value.find("\\\"") != std::string::npos);
+    assert(t.value.find("\\\\") != std::string::npos);
+    std::cout << "String escape lexing test passed!" << std::endl;
+}
+
 int main() {
     testLexer();
     testStructLexing();
@@ -80,5 +121,7 @@ int main() {
     testTypeKeywordLexing();
     testMacroLexing();
     testControlKeywordLexing();
+    testCommentSkippingAndOperators();
+    testStringEscapeLexing();
     return 0;
 }
