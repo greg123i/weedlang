@@ -20,7 +20,7 @@ public:
         bool emitObjOnly = false;
         bool runAfterBuild = false;
         bool useBootstrap = false;
-        std::string bootstrapTokenizerPath = "bootstrap_tokenizer.exe";
+        std::string bootstrapTokenizerPath = "bootstrap_tokenizer.cmd";
         std::string bootstrapParserPath = "bootstrap_parser.exe";
         std::string bootstrapComptimePath;
         std::string bootstrapCodegenPath;
