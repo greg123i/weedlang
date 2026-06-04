@@ -1,8 +1,18 @@
 # Bootstrapping Weedc In WeedLang
 
-Weedc can be rewritten in WeedLang, but only incrementally.
+Weedc can be rewritten in WeedLang, but only incrementally. The compiler supports an external bootstrap mode where each stage (lexer, parser, etc.) can be replaced by an external executable.
 
-The workable model is:
+## Bootstrap Mechanism
+
+The compiler driver (`src/compiler/Compiler.cpp`) can be configured to shell out to external tools for specific tasks:
+
+- **`--bootstrap`**: Enables bootstrapping using default tool names (e.g., `bootstrap_parser.exe`).
+- **`--bootstrap-parser <path>`**: Uses a specific executable as the parser.
+- **`--bootstrap-tokenizer <path>`**: Uses a specific executable as the tokenizer.
+
+When an external tool is used, the compiler communicates with it via temporary files containing token streams or AST dumps. If an external tool is missing or fails, the compiler will report an error and abort, rather than producing empty output.
+
+## Roadmap
 
 1. Keep the current C++ compiler as stage 0.
 2. Move runtime helpers into `lib/core.weed`.

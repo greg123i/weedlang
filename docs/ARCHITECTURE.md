@@ -32,6 +32,6 @@ A custom linker designed to avoid dependency on large external linkers like `lin
 
 ## Technical Choices
 
-- **Language**: C++17 for the compiler implementation.
+- **Language**: C++20 for the compiler implementation.
 - **Backend**: NASM was chosen for its simplicity and human-readable output, which helps in debugging the code generator.
-- **Linker**: A custom internal linker ensures that `weedc` can produce working executables on Windows without requiring the Visual Studio build tools to be installed.
+- **Linker**: A custom internal linker ensures that `weedc` can produce working executables on Windows without requiring heavy external dependencies like the Visual Studio build tools.

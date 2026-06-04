@@ -23,7 +23,12 @@ std::unique_ptr<ASTNode> Parser::parseExternal(const std::string& exePath, const
     }
 
     std::string cmd = exePath + " < " + tempIn + " > " + tempOut + " 2> nul";
-    std::system(cmd.c_str());
+    int rc = std::system(cmd.c_str());
+    if (rc != 0) {
+        std::filesystem::remove(tempIn);
+        std::filesystem::remove(tempOut);
+        throw std::runtime_error("external parser '" + exePath + "' failed with exit code " + std::to_string(rc));
+    }
 
     std::ifstream in(tempOut);
     std::vector<std::unique_ptr<ASTNode>> programStmts;

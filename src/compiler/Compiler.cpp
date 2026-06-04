@@ -43,8 +43,10 @@ std::vector<std::unique_ptr<ASTNode>> Compiler::loadAndParseRecursive(const std:
     std::string input = readAll(inFile);
 
     Lexer lexer(input, path);
-    if (opt_.useBootstrap || !opt_.bootstrapTokenizerPath.empty()) {
-        lexer.setExternalPath(opt_.bootstrapTokenizerPath);
+    std::string tokPath = opt_.bootstrapTokenizerPath;
+    if (opt_.useBootstrap && tokPath.empty()) tokPath = "bootstrap_tokenizer.exe";
+    if (!tokPath.empty()) {
+        lexer.setExternalPath(tokPath);
     }
     std::vector<Token> tokens;
     while (true) {
@@ -101,8 +103,11 @@ std::vector<std::unique_ptr<ASTNode>> Compiler::loadAndParseRecursive(const std:
     }
 
     std::unique_ptr<ASTNode> ast;
-    if (opt_.useBootstrap || !opt_.bootstrapParserPath.empty()) {
-        ast = Parser::parseExternal(opt_.bootstrapParserPath, tokens);
+    std::string parserPath = opt_.bootstrapParserPath;
+    if (opt_.useBootstrap && parserPath.empty()) parserPath = "bootstrap_parser.exe";
+
+    if (!parserPath.empty()) {
+        ast = Parser::parseExternal(parserPath, tokens);
     } else {
         Parser parser(tokens);
         ast = parser.parse();
@@ -150,8 +155,10 @@ int Compiler::run() {
     if (opt_.readStdin) {
         std::string input = readAll(std::cin);
         Lexer lexer(input, "<stdin>");
-        if (opt_.useBootstrap || !opt_.bootstrapTokenizerPath.empty()) {
-            lexer.setExternalPath(opt_.bootstrapTokenizerPath);
+        std::string tokPath = opt_.bootstrapTokenizerPath;
+        if (opt_.useBootstrap && tokPath.empty()) tokPath = "bootstrap_tokenizer.exe";
+        if (!tokPath.empty()) {
+            lexer.setExternalPath(tokPath);
         }
         std::vector<Token> tokens;
         while (true) {
@@ -162,8 +169,11 @@ int Compiler::run() {
         tokens = expandMacros(tokens);
 
         std::unique_ptr<ASTNode> ast;
-        if (opt_.useBootstrap || !opt_.bootstrapParserPath.empty()) {
-            ast = Parser::parseExternal(opt_.bootstrapParserPath, tokens);
+        std::string parserPath = opt_.bootstrapParserPath;
+        if (opt_.useBootstrap && parserPath.empty()) parserPath = "bootstrap_parser.exe";
+
+        if (!parserPath.empty()) {
+            ast = Parser::parseExternal(parserPath, tokens);
         } else {
             Parser parser(tokens);
             ast = parser.parse();

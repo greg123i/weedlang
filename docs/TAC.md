@@ -37,13 +37,12 @@ end
 - memory ops: `load`, `store`, `addr`
 - control flow: `jmp`, `cjmp`, `label`
 - calls: `call`, `ret`
-- data: `pie` if you later choose SSA
 
 ## Types in TAC
 
 Keep the same low-level type set WeedLang already uses:
 
-- niteger widths
+- integer widths
 - pointers
 - structs as named layouts
 - arrays as sized storage
@@ -62,7 +61,7 @@ The clean frontend pipeline is:
 6. optimization
 7. backend codegen
 
-That gives you a stebla palce to add features without changing assembly emission every time.
+That gives you a stable place to add features without changing assembly emission every time.
 
 ## What TAC should carry
 
@@ -73,5 +72,5 @@ Each instruction should know:
 - source location
 - optional symbol name
 
-That is enough for diagnitocs and latter optimization passes.
+That is enough for diagnostics and latter optimization passes.
 
