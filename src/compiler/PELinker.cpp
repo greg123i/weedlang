@@ -471,7 +471,7 @@ private:
         OptionalHeader64 oh{};
         oh.Magic = 0x20B; oh.AddressOfEntryPoint = itEntry->second;
         oh.ImageBase = ImageBase; oh.SectionAlignment = SectionAlignment; oh.FileAlignment = FileAlignment;
-        oh.MajorOperatingSystemVersion = 6; oh.MajorSubsystemVersion = 6;
+        oh.MajorOperatingSystemVersion = 6; oh.MinorOperatingSystemVersion = 0; oh.MajorSubsystemVersion = 6; oh.MinorSubsystemVersion = 0;
         oh.SizeOfImage = finalSizeOfImage; oh.SizeOfHeaders = finalSizeOfHeaders;
         oh.Subsystem = 3; oh.DllCharacteristics = 0x8100;
         oh.SizeOfStackReserve = 1 << 20; oh.SizeOfStackCommit = 1 << 12;

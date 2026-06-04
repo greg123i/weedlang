@@ -31,14 +31,10 @@ static void printUsage(const char* exe) {
 int main(int argc, char* argv[]) {
     Compiler::Options opt;
 
-    // Default NASM path
+    // Allow an explicit NASM override via env var; otherwise rely on the default
+    // command name so PATH resolution or --nasm can supply the executable.
     if (const char* env = std::getenv("NASM_PATH")) {
         opt.nasmPath = env;
-    } else {
-        const fs::path legacy = R"(C:\Users\QWE\AppData\Local\bin\NASM\nasm.exe)";
-        if (fs::exists(legacy)) {
-            opt.nasmPath = legacy.string();
-        }
     }
 
     for (int i = 1; i < argc; ++i) {

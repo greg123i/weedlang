@@ -1,184 +1,189 @@
 import "lib/core.weed";
 
-fn emit(i8* kind, i8* val, i64 line, i64 col) {
+fn emit_span(i8* kind, i8* start, i8* finish, i64 line) {
     print_int(line);
     print(":");
-    print_int(col);
+    print_int(1);
     print(" ");
     print(kind);
     print(" ");
-    print(val);
+    print_int(finish - start);
+    print(":");
+    while (start != finish) {
+        print_char(*start);
+        start = start + 1;
+    }
     print("\n");
 }
 
-fn is_keyword(i8* s) -> i64 {
-    if (streq(s, "fn") != 0) { return 1; }
-    if (streq(s, "return") != 0) { return 1; }
-    if (streq(s, "if") != 0) { return 1; }
-    if (streq(s, "else") != 0) { return 1; }
-    if (streq(s, "while") != 0) { return 1; }
-    if (streq(s, "struct") != 0) { return 1; }
-    if (streq(s, "const") != 0) { return 1; }
-    if (streq(s, "import") != 0) { return 1; }
-    if (streq(s, "foreign") != 0) { return 1; }
-    if (streq(s, "comptime") != 0) { return 1; }
-    if (streq(s, "asm") != 0) { return 1; }
-    if (streq(s, "as") != 0) { return 1; }
-    if (streq(s, "macro_rules") != 0) { return 1; }
-    if (streq(s, "char") != 0) { return 1; }
-    if (streq(s, "short") != 0) { return 1; }
-    if (streq(s, "int") != 0) { return 1; }
-    if (streq(s, "long") != 0) { return 1; }
-    if (streq(s, "i8") != 0) { return 1; }
-    if (streq(s, "i16") != 0) { return 1; }
-    if (streq(s, "i32") != 0) { return 1; }
-    if (streq(s, "i64") != 0) { return 1; }
-    if (streq(s, "u8") != 0) { return 1; }
-    if (streq(s, "u16") != 0) { return 1; }
-    if (streq(s, "u32") != 0) { return 1; }
-    if (streq(s, "u64") != 0) { return 1; }
-    if (streq(s, "void") != 0) { return 1; }
-    0
+fn bump_pos(i8 c, i64* line) {
+    if (c == 10) {
+        *line = *line + 1;
+    }
+}
+
+fn is_keyword(i8* start, i8* finish) -> i64 {
+    if (
+        (finish - start == 2 && *start == 102 && *(start + 1) == 110) ||
+        (finish - start == 6 && *start == 114 && *(start + 1) == 101 && *(start + 2) == 116 && *(start + 3) == 117 && *(start + 4) == 114 && *(start + 5) == 110) ||
+        (finish - start == 2 && *start == 105 && *(start + 1) == 102) ||
+        (finish - start == 4 && *start == 101 && *(start + 1) == 108 && *(start + 2) == 115 && *(start + 3) == 101) ||
+        (finish - start == 5 && *start == 119 && *(start + 1) == 104 && *(start + 2) == 105 && *(start + 3) == 108 && *(start + 4) == 101) ||
+        (finish - start == 6 && *start == 115 && *(start + 1) == 116 && *(start + 2) == 114 && *(start + 3) == 117 && *(start + 4) == 99 && *(start + 5) == 116) ||
+        (finish - start == 5 && *start == 99 && *(start + 1) == 111 && *(start + 2) == 110 && *(start + 3) == 115 && *(start + 4) == 116) ||
+        (finish - start == 6 && *start == 105 && *(start + 1) == 109 && *(start + 2) == 112 && *(start + 3) == 111 && *(start + 4) == 114 && *(start + 5) == 116) ||
+        (finish - start == 7 && *start == 102 && *(start + 1) == 111 && *(start + 2) == 114 && *(start + 3) == 101 && *(start + 4) == 105 && *(start + 5) == 103 && *(start + 6) == 110) ||
+        (finish - start == 9 && *start == 99 && *(start + 1) == 111 && *(start + 2) == 109 && *(start + 3) == 112 && *(start + 4) == 116 && *(start + 5) == 105 && *(start + 6) == 109 && *(start + 7) == 101 && *(start + 8) == 109) ||
+        (finish - start == 3 && *start == 97 && *(start + 1) == 115 && *(start + 2) == 109) ||
+        (finish - start == 2 && *start == 97 && *(start + 1) == 115) ||
+        (finish - start == 12 && *start == 109 && *(start + 1) == 97 && *(start + 2) == 99 && *(start + 3) == 114 && *(start + 4) == 111 && *(start + 5) == 95 && *(start + 6) == 114 && *(start + 7) == 117 && *(start + 8) == 108 && *(start + 9) == 101 && *(start + 10) == 115) ||
+        (finish - start == 4 && *start == 99 && *(start + 1) == 104 && *(start + 2) == 97 && *(start + 3) == 114) ||
+        (finish - start == 5 && *start == 115 && *(start + 1) == 104 && *(start + 2) == 111 && *(start + 3) == 114 && *(start + 4) == 116) ||
+        (finish - start == 3 && *start == 105 && *(start + 1) == 110 && *(start + 2) == 116) ||
+        (finish - start == 4 && *start == 108 && *(start + 1) == 111 && *(start + 2) == 110 && *(start + 3) == 103) ||
+        (finish - start == 2 && *start == 105 && *(start + 1) == 56) ||
+        (finish - start == 3 && *start == 105 && *(start + 1) == 49 && *(start + 2) == 54) ||
+        (finish - start == 3 && *start == 105 && *(start + 1) == 51 && *(start + 2) == 50) ||
+        (finish - start == 3 && *start == 105 && *(start + 1) == 54 && *(start + 2) == 52) ||
+        (finish - start == 2 && *start == 117 && *(start + 1) == 56) ||
+        (finish - start == 3 && *start == 117 && *(start + 1) == 49 && *(start + 2) == 54) ||
+        (finish - start == 3 && *start == 117 && *(start + 1) == 51 && *(start + 2) == 50) ||
+        (finish - start == 3 && *start == 117 && *(start + 1) == 54 && *(start + 2) == 52) ||
+        (finish - start == 4 && *start == 118 && *(start + 1) == 111 && *(start + 2) == 105 && *(start + 3) == 100)
+    ) {
+        1
+    } else {
+        0
+    }
+}
+
+fn skip_trivia(i8* p, i64* line) -> i8* {
+    i8* prev = 0;
+    while (p != prev) {
+        prev = p;
+        p = skip_spaces(p, line);
+        p = skip_comment(p, line);
+    }
+    p
+}
+
+fn skip_spaces(i8* p, i64* line) -> i8* {
+    while (is_space(*p) != 0) {
+        bump_pos(*p, line);
+        p = p + 1;
+    }
+    p
+}
+
+fn skip_comment(i8* p, i64* line) -> i8* {
+    if (*p == 47 && *(p + 1) == 47) {
+        while (*p != 0 && *p != 10) {
+            bump_pos(*p, line);
+            p = p + 1;
+        }
+    }
+    p
+}
+
+fn scan_word(i8* p, i64* line) -> i8* {
+    i8* start = p;
+    while (is_alnum(*p) != 0 || *p == 95) {
+        p = p + 1;
+    }
+    if (is_keyword(start, p) != 0) {
+        emit_span("KEYWORD", start, p, *line);
+    } else {
+        emit_span("IDENT", start, p, *line);
+    }
+    p
+}
+
+fn scan_number(i8* p, i64* line) -> i8* {
+    i8* start = p;
+    while (is_digit(*p) != 0) {
+        p = p + 1;
+    }
+    emit_span("NUMBER", start, p, *line);
+    p
+}
+
+fn scan_string(i8* p, i64* line) -> i8* {
+    i8* start = p + 1;
+    p = p + 1;
+    while (*p != 0 && *p != 34) {
+        if (*p == 92 && *(p + 1) != 0) {
+            p = p + 1;
+        }
+        p = p + 1;
+    }
+    if (*p == 34) {
+        p = p + 1;
+    }
+    emit_span("STRING", start, p - 1, *line);
+    p
+}
+
+fn maybe_two(i8 c, i8 next, i64* adv, i8* out, i8 a, i8 b) {
+    if (c == a && next == b) {
+        *adv = 2;
+        out[1] = b;
+    }
+}
+
+fn scan_punc(i8* p, i64* line) -> i8* {
+    i8 c = *p;
+    i8 next = *(p + 1);
+    i8[4] out;
+    i8* dst = out;
+    i64 adv = 1;
+
+    out[0] = c;
+    out[1] = 0;
+    out[2] = 0;
+    out[3] = 0;
+
+    maybe_two(c, next, &adv, dst, 45, 62);
+    maybe_two(c, next, &adv, dst, 61, 61);
+    maybe_two(c, next, &adv, dst, 33, 61);
+    maybe_two(c, next, &adv, dst, 60, 61);
+    maybe_two(c, next, &adv, dst, 62, 61);
+    maybe_two(c, next, &adv, dst, 38, 38);
+    maybe_two(c, next, &adv, dst, 124, 124);
+    maybe_two(c, next, &adv, dst, 61, 62);
+
+    emit_span("PUNC", dst, dst + adv, *line);
+    p + adv
+}
+
+fn scan_nonword(i8* p, i64* line) -> i8* {
+    if (is_digit(*p) != 0) {
+        scan_number(p, line)
+    } else if (*p == 34) {
+        scan_string(p, line)
+    } else {
+        scan_punc(p, line)
+    }
+}
+
+fn scan_token(i8* p, i64* line) -> i8* {
+    if (*p == 0) {
+        p
+    } else if (is_alpha(*p) != 0 || *p == 95) {
+        scan_word(p, line)
+    } else {
+        scan_nonword(p, line)
+    }
 }
 
 fn tokenize(i8* src) {
     i8* p = src;
-    i8[1024] buf;
-    i8* bp = buf;
-    i8[4] punc_buf;
-    i8* pbp = punc_buf;
-
-    i64 cur_line = 1;
-    i64 cur_col = 1;
+    i64 line = 1;
 
     while (*p != 0) {
-        if (is_space(*p) != 0) {
-            if (*p == 10) {
-                cur_line = cur_line + 1;
-                cur_col = 1;
-            } else {
-                cur_col = cur_col + 1;
-            }
-            p = p + 1;
-        } else {
-            if (*p == 47 && *(p + 1) == 47) { // // comment
-                while (*p != 0 && *p != 10) {
-                    p = p + 1;
-                }
-            } else {
-                i64 start_line = cur_line;
-                i64 start_col = cur_col;
-
-                if (is_alpha(*p) != 0 || *p == 95) {
-                    i8* start = p;
-                    while (is_alnum(*p) != 0 || *p == 95) {
-                        p = p + 1;
-                        cur_col = cur_col + 1;
-                    }
-                    i64 len = p - start;
-                    if (len > 1023) { len = 1023; }
-                    i64 i = 0;
-                    while (i < len) {
-                        bp[i] = *(start + i);
-                        i = i + 1;
-                    }
-                    bp[len] = 0;
-                    if (is_keyword(bp) != 0) { emit("KEYWORD", bp, start_line, start_col); } else { emit("IDENT", bp, start_line, start_col); }
-                } else {
-                    if (is_digit(*p) != 0) {
-                        i8* start = p;
-                        while (is_digit(*p) != 0) {
-                            p = p + 1;
-                            cur_col = cur_col + 1;
-                        }
-                        i64 len = p - start;
-                        if (len > 1023) { len = 1023; }
-                        i64 i = 0;
-                        while (i < len) {
-                            bp[i] = *(start + i);
-                            i = i + 1;
-                        }
-                        bp[len] = 0;
-                        emit("NUMBER", bp, start_line, start_col);
-                    } else {
-                        if (*p == 34) { // "
-                            p = p + 1;
-                            cur_col = cur_col + 1;
-                            i8* start = p;
-                            while (*p != 0 && *p != 34) {
-                                if (*p == 92 && *(p + 1) != 0) { // \
-                                    p = p + 1;
-                                    cur_col = cur_col + 1;
-                                }
-                                if (*p == 10) {
-                                    cur_line = cur_line + 1;
-                                    cur_col = 1;
-                                } else {
-                                    cur_col = cur_col + 1;
-                                }
-                                p = p + 1;
-                            }
-                            i64 len = p - start;
-                            if (len > 1023) { len = 1023; }
-                            i64 i = 0;
-                            while (i < len) {
-                                bp[i] = *(start + i);
-                                i = i + 1;
-                            }
-                            bp[len] = 0;
-                            if (*p == 34) { 
-                                p = p + 1;
-                                cur_col = cur_col + 1;
-                            }
-                            emit("STRING", bp, start_line, start_col);
-                        } else {
-                            i8 c = *p;
-                            p = p + 1;
-                            cur_col = cur_col + 1;
-                            pbp[0] = c;
-                            pbp[1] = 0;
-                            pbp[2] = 0;
-                            pbp[3] = 0;
-
-                            if (c == 45 && *p == 62) { // ->
-                                pbp[1] = 62; p = p + 1; cur_col = cur_col + 1;
-                            } else {
-                                if (c == 61 && *p == 61) { // ==
-                                    pbp[1] = 61; p = p + 1; cur_col = cur_col + 1;
-                                } else {
-                                    if (c == 33 && *p == 61) { // !=
-                                        pbp[1] = 61; p = p + 1; cur_col = cur_col + 1;
-                                    } else {
-                                        if (c == 60 && *p == 61) { // <=
-                                            pbp[1] = 61; p = p + 1; cur_col = cur_col + 1;
-                                        } else {
-                                            if (c == 62 && *p == 61) { // >=
-                                                pbp[1] = 61; p = p + 1; cur_col = cur_col + 1;
-                                            } else {
-                                                if (c == 38 && *p == 38) { // &&
-                                                    pbp[1] = 38; p = p + 1; cur_col = cur_col + 1;
-                                                } else {
-                                                    if (c == 124 && *p == 124) { // ||
-                                                        pbp[1] = 124; p = p + 1; cur_col = cur_col + 1;
-                                                    } else {
-                                                        if (c == 61 && *p == 62) { // =>
-                                                            pbp[1] = 62; p = p + 1; cur_col = cur_col + 1;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            emit("PUNC", pbp, start_line, start_col);
-                        }
-                    }
-                }
-            }
-        }
+        p = skip_trivia(p, &line);
+        p = scan_token(p, &line);
     }
-    emit("EOF", "", cur_line, cur_col);
+    emit_span("EOF", src, src, line);
 }
 
 fn main() -> int {

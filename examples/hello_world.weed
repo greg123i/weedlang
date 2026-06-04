@@ -1,11 +1,6 @@
-// Minimal WeedLang console app
-foreign "kernel32.dll" GetStdHandle;
-foreign "kernel32.dll" WriteFile;
+import "lib/core.weed"; //uses stdlib insted of minimal
 
 fn main() -> int {
-    void* handle = GetStdHandle(0 - 11);
-    u32 written = 0;
-    i8* msg = "Hello, world!\n";
-    WriteFile(handle, msg, 14 as u32, &written, 0);
-    0
+    println("Hello from WeedLang!");
+    return 0;
 }

@@ -31,6 +31,7 @@ public:
         std::unordered_map<std::string, std::string> varToStruct;
         std::unordered_map<std::string, Type> varTypes;
         int currentStackOffset = 0;
+        int maxStackOffset = 0;
         std::string returnLabel;
     };
 

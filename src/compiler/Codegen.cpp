@@ -55,8 +55,8 @@ static void emitLoadExtended(std::stringstream& out, const std::string& addrExpr
 
 static std::string nodeLoc(const ASTNode* node) {
     const auto& loc = node->location();
-    if (!loc.file || loc.file->empty()) return "";
-    return *loc.file + ":" + std::to_string(loc.line) + ":" + std::to_string(loc.column) + ": ";
+    std::string file = (loc.file && !loc.file->empty()) ? *loc.file : "<unknown>";
+    return file + ":" + std::to_string(loc.line) + ":" + std::to_string(loc.column) + ": ";
 }
 
 static std::streambuf* swapOut(std::stringstream& from, std::stringstream& to) {
@@ -100,6 +100,9 @@ void NASMVisitor::endFunction() {
 int NASMVisitor::pushTmp() {
     int off = ctx().currentStackOffset + 8;
     ctx().currentStackOffset += 8;
+    if (ctx().currentStackOffset > ctx().maxStackOffset) {
+        ctx().maxStackOffset = ctx().currentStackOffset;
+    }
     asmCode << "    mov qword [rbp - " << (32 + off) << "], rax\n";
     return off;
 }
@@ -310,6 +313,7 @@ void NASMVisitor::visit(VarDeclNode* node) {
         int a = globalStructs[node->type().structName].align;
         ctx().currentStackOffset = alignUp(ctx().currentStackOffset, a);
         ctx().currentStackOffset += size;
+        if (ctx().currentStackOffset > ctx().maxStackOffset) ctx().maxStackOffset = ctx().currentStackOffset;
         ctx().stackOffsets[node->name()] = ctx().currentStackOffset;
 
         asmCode << "    xor rax, rax\n";
@@ -321,6 +325,7 @@ void NASMVisitor::visit(VarDeclNode* node) {
         int a = alignOfType(node->type());
         ctx().currentStackOffset = alignUp(ctx().currentStackOffset, a);
         ctx().currentStackOffset += sz;
+        if (ctx().currentStackOffset > ctx().maxStackOffset) ctx().maxStackOffset = ctx().currentStackOffset;
         ctx().stackOffsets[node->name()] = ctx().currentStackOffset;
 
         if (node->init()) {
@@ -533,8 +538,8 @@ void NASMVisitor::visit(ProgramNode* node) {
         return;
     }
     asmCode << "bits 64\ndefault rel\nmain:\n    sub rsp, 40\n";
+    asmCode << "    call wl__toplevel\n";
     if (userFunctions.count("main")) asmCode << "    call wl_main\n";
-    else asmCode << "    call wl__toplevel\n";
     asmCode << "    mov rcx, rax\n    call ExitProcess\n    add rsp, 40\n    ret\n";
     asmCode << "wl__toplevel:\n";
     {
@@ -546,8 +551,9 @@ void NASMVisitor::visit(ProgramNode* node) {
             if (stmt->isExpression()) popType();
         }
         asmCode << ctx().returnLabel << ":\n"; restoreOut(asmCode, saved);
-        int locals = align16(ctx().currentStackOffset);
+        int locals = align16(ctx().maxStackOffset);
         asmCode << "    push rbp\n    mov rbp, rsp\n    sub rsp, " << (32 + locals) << "\n";
+        asmCode << "    xor rax, rax\n";
         asmCode << body.str();
         asmCode << "    add rsp, " << (32 + locals) << "\n    pop rbp\n    ret\n";
         endFunction();
@@ -611,6 +617,7 @@ void NASMVisitor::visit(ConstDeclNode* node) {
     int sz = sizeOfType(node->type()), a = alignOfType(node->type());
     ctx().currentStackOffset = alignUp(ctx().currentStackOffset, a);
     ctx().currentStackOffset += sz;
+    if (ctx().currentStackOffset > ctx().maxStackOffset) ctx().maxStackOffset = ctx().currentStackOffset;
     ctx().stackOffsets[node->name()] = ctx().currentStackOffset;
     ctx().varTypes[node->name()] = node->type();
     if (node->init()) {
@@ -632,13 +639,14 @@ void NASMVisitor::visit(FuncDefNode* node) {
         int sz = sizeOfType(p.type), a = alignOfType(p.type);
         ctx().currentStackOffset = alignUp(ctx().currentStackOffset, a);
         ctx().currentStackOffset += sz;
+        if (ctx().currentStackOffset > ctx().maxStackOffset) ctx().maxStackOffset = ctx().currentStackOffset;
         ctx().stackOffsets[p.name] = ctx().currentStackOffset;
         ctx().varTypes[p.name] = p.type;
         pinfos.push_back({p.name, p.type, sz});
     }
     node->body()->accept(this);
     body << retLabel << ":\n"; restoreOut(asmCode, saved);
-    int locals = align16(ctx().currentStackOffset);
+    int locals = align16(ctx().maxStackOffset);
     asmCode << "    push rbp\n    mov rbp, rsp\n    sub rsp, " << (32 + locals) << "\n";
     for (size_t i = 0; i < pinfos.size(); ++i) {
         int destOff = 32 + ctx().stackOffsets[pinfos[i].name];
@@ -651,6 +659,7 @@ void NASMVisitor::visit(FuncDefNode* node) {
             if (pinfos[i].sz == 1) asmCode << "al\n"; else if (pinfos[i].sz == 2) asmCode << "ax\n"; else if (pinfos[i].sz == 4) asmCode << "eax\n"; else asmCode << "rax\n";
         }
     }
+    asmCode << "    xor rax, rax\n";
     asmCode << body.str();
     asmCode << "    add rsp, " << (32 + locals) << "\n    pop rbp\n    ret\n";
     endFunction();

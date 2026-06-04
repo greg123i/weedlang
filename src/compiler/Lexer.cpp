@@ -148,33 +148,63 @@ void Lexer::runExternalTokenizer(const std::string& exePath) {
         return;
     }
 
-    std::ifstream in(tempOutPath);
-    std::string line;
-    while (std::getline(in, line)) {
-        if (line.empty()) continue;
+    std::ifstream in(tempOutPath, std::ios::binary);
+    std::string out((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
 
-        // Parse: LINE:COL TYPE VALUE
-        size_t colon = line.find(':');
-        if (colon == std::string::npos) continue;
-        size_t firstSpace = line.find(' ', colon);
-        if (firstSpace == std::string::npos) continue;
-        size_t secondSpace = line.find(' ', firstSpace + 1);
-        
-        int l = std::stoi(line.substr(0, colon));
-        int c = std::stoi(line.substr(colon + 1, firstSpace - colon - 1));
-        std::string typeStr = line.substr(firstSpace + 1, (secondSpace == std::string::npos ? std::string::npos : secondSpace - firstSpace - 1));
-        std::string val = (secondSpace == std::string::npos ? "" : line.substr(secondSpace + 1));
+    size_t pos = 0;
+    while (pos < out.size()) {
+        while (pos < out.size() && std::isspace(static_cast<unsigned char>(out[pos]))) {
+            pos++;
+        }
+        if (pos >= out.size()) {
+            break;
+        }
 
-        // Trim trailing spaces from val
-        while (!val.empty() && std::isspace((unsigned char)val.back())) val.pop_back();
+        size_t colon = out.find(':', pos);
+        if (colon == std::string::npos) {
+            break;
+        }
+        int l = std::stoi(out.substr(pos, colon - pos));
+        pos = colon + 1;
 
-        val = decodeExternalTokenValue(val);
+        size_t firstSpace = out.find(' ', pos);
+        if (firstSpace == std::string::npos) {
+            break;
+        }
+        int c = std::stoi(out.substr(pos, firstSpace - pos));
+        pos = firstSpace + 1;
+
+        size_t secondSpace = out.find(' ', pos);
+        if (secondSpace == std::string::npos) {
+            break;
+        }
+        std::string typeStr = out.substr(pos, secondSpace - pos);
+        pos = secondSpace + 1;
+
+        size_t lenColon = out.find(':', pos);
+        if (lenColon == std::string::npos) {
+            break;
+        }
+        size_t valLen = static_cast<size_t>(std::stoull(out.substr(pos, lenColon - pos)));
+        pos = lenColon + 1;
+
+        if (pos + valLen > out.size()) {
+            break;
+        }
+        std::string val = out.substr(pos, valLen);
+        pos += valLen;
+
+        if (pos < out.size() && out[pos] == '\r') {
+            pos++;
+        }
+        if (pos < out.size() && out[pos] == '\n') {
+            pos++;
+        }
 
         TokenType type = stringToTokenType(typeStr, val);
         externalTokens_.push_back(makeToken(type, val, l, c));
     }
 
-    in.close();
     std::filesystem::remove(tempInPath);
     std::filesystem::remove(tempOutPath);
 }
